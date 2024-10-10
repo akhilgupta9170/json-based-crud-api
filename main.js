@@ -37,7 +37,6 @@ const server = http.createServer(async (req, res) => {
                 let body = "";
                 req.on('data', (chunck) => {
                     body += chunck.toString();
-                    console.log(body);
 
                 })
                 req.on('end', async () => {
@@ -62,7 +61,40 @@ const server = http.createServer(async (req, res) => {
             break;
             case 'PUT':
                 if(req.url === './users/:id'){
+                    let body ="";
+                    req.on('data', (chunks)=>{
+                        body += chunks.toString();
+                    })
+                    req.on('end', async () => {
+                        const params = new URLSearchParams(body);
+                        const id = req.params.id;
+                        const updatedUser = {};
+                        for (const [key, value] of params){
+                            updatedUser[key] = value;
+                        }
+                        const users = await readUsers();
+                        const userIndex = users.findIndex(user => user.id ===id)
+                        if(userIndex!== -1){
+                            const currentUser = users[userIndex];
+                            for (const key in updatedUser){
+                                currentUser[key] = updatedUser[key];
+                            }
+                            users[userIndex] = currentUser;
+                            await writeUsers(users);
+                            res.writeHead(200);
+                            res.end(JSON.stringify(users[userIndex]));
+                        }
+                        else{
+                            res.writeHead(404);
+                            res.end(JSON.stringify({message: 'User not found'}));
+                        }
 
+
+
+
+            
+                    })
+               
                 }
 
 
