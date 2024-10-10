@@ -16,7 +16,7 @@ const writeUsers = async (users) => {
 const PORT = process.env.PORT || 3000;
 const server = http.createServer(async (req, res) => {
     res.setHeader('Content-Type', 'application/json');
-   
+
 
 
     switch (req.method) {
@@ -41,9 +41,14 @@ const server = http.createServer(async (req, res) => {
 
                 })
                 req.on('end', async () => {
-                    const newUser = JSON.parse(body);
+
+                    const newUser = {};
+                    const params = new URLSearchParams(body);
+                    for (const [key, value] of params) {
+                        newUser[key] = value;
+                    }
                     const users = await readUsers();
-                    newUser.id = Date.now().toString();
+                    newUser.id = users.length + 1;
                     users.push(newUser);
                     await writeUsers(users);
                     res.writeHead(201);
@@ -55,8 +60,12 @@ const server = http.createServer(async (req, res) => {
                 res.end(JSON.stringify({ message: 'Not Found' }));
             }
             break;
+            case 'PUT':
+                if(req.url === './users/:id'){
 
-        
+                }
+
+
 
 
 
