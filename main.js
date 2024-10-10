@@ -21,10 +21,28 @@ const server = http.createServer(async (req, res) => {
 
     switch (req.method) {
         case "GET":
+            let urlParts = req.url.split('/');
+            const id = Number(urlParts[2]);
             if (req.url === '/users') {
                 const users = await readUsers();
                 res.writeHead(200);
                 res.end(JSON.stringify(users, null, 2));
+            }
+            else if (req.url ==`/users/${id}`) {
+                // const urlParts = req.url.split('/');
+                // const id = urlParts[2];
+                
+                const users = await readUsers();
+                const user = users.findIndex(user => user.id === id);
+                if (user!== -1) {
+                    res.writeHead(200);
+                    res.end(JSON.stringify(users[user]));
+                }
+                else {
+                    res.writeHead(404);
+                    res.end(JSON.stringify({ message: 'User not found' }));
+                }
+
             }
             else {
                 res.writeHead(404);
@@ -33,6 +51,7 @@ const server = http.createServer(async (req, res) => {
             break;
 
         case "POST":
+            
             if (req.url === '/users') {
                 let body = "";
                 req.on('data', (chunck) => {
@@ -60,20 +79,23 @@ const server = http.createServer(async (req, res) => {
             }
             break;
             case 'PUT':
-                if(req.url === './users/:id'){
+                const urlParts1 = req.url.split('/');
+            const id1= Number(urlParts1[2]);
+                if(req.url === `/users/${id1}`){
                     let body ="";
                     req.on('data', (chunks)=>{
                         body += chunks.toString();
                     })
                     req.on('end', async () => {
                         const params = new URLSearchParams(body);
-                        const id = req.params.id;
+                        const urlParts = req.url.split('/');
+                        const id = Number(urlParts[2]);
                         const updatedUser = {};
                         for (const [key, value] of params){
                             updatedUser[key] = value;
                         }
                         const users = await readUsers();
-                        const userIndex = users.findIndex(user => user.id ===id)
+                        const userIndex = users.findIndex(user => user.id ===id1)
                         if(userIndex!== -1){
                             const currentUser = users[userIndex];
                             for (const key in updatedUser){
@@ -89,13 +111,37 @@ const server = http.createServer(async (req, res) => {
                             res.end(JSON.stringify({message: 'User not found'}));
                         }
 
-
-
-
-            
                     })
                
                 }
+                else{
+                    res.writeHead(404);
+                    res.end(JSON.stringify({message: 'Not Found'}));
+                }
+                break;
+                case 'DELETE':
+                    const urlParts2 = req.url.split('/');
+                    const id2 = Number(urlParts2[2]);
+                    if(req.url === `/users/${id2}`){
+                        const users = await readUsers();
+                        const userIndex = users.findIndex(user => user.id === id2);
+                        if(userIndex!== -1){
+                            users.splice(userIndex, 1);
+                            await writeUsers(users);
+                            res.writeHead(204);
+                            res.end();
+                        }
+                        else{
+                            res.writeHead(404);
+                            res.end(JSON.stringify({message: 'User not found'}));
+                        }
+                    }
+                    else{
+                        res.writeHead(404);
+                        res.end(JSON.stringify({message: 'Not Found'}));
+                    }
+                    break;
+        default: 
 
 
 
