@@ -13,145 +13,85 @@ const writeUsers = async (users) => {
     await fs.writeFile(dataFilePath, JSON.stringify(users, null, 2));
 };
 
-const PORT = process.env.PORT || 3000;
+const sendResponse = (res, statusCode, data) => {
+    res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(data));
+};
+
+const PORT = 3000;
+
 const server = http.createServer(async (req, res) => {
-    res.setHeader('Content-Type', 'application/json');
+    const urlParts = req.url.split('/');
+    const id = Number(urlParts[2]);
+    let users;
 
-
+    try {
+        users = await readUsers();
+    } catch (error) {
+        return sendResponse(res, 500, { message: 'Internal Server Error' });
+    }
 
     switch (req.method) {
         case "GET":
-            let urlParts = req.url.split('/');
-            const id = Number(urlParts[2]);
             if (req.url === '/users') {
-                const users = await readUsers();
-                res.writeHead(200);
-                res.end(JSON.stringify(users, null, 2));
-            }
-            else if (req.url ==`/users/${id}`) {
-                // const urlParts = req.url.split('/');
-                // const id = urlParts[2];
-                
-                const users = await readUsers();
-                const user = users.findIndex(user => user.id === id);
-                if (user!== -1) {
-                    res.writeHead(200);
-                    res.end(JSON.stringify(users[user]));
+                return sendResponse(res, 200, users);
+            } else if (urlParts[1] === 'users' &&  id) {
+                const user = users.find(user => user.id === id);
+                if (user) {
+                    return sendResponse(res, 200, user);
                 }
-                else {
-                    res.writeHead(404);
-                    res.end(JSON.stringify({ message: 'User not found' }));
-                }
-
+                return sendResponse(res, 404, { message: 'User not found' });
             }
-            else {
-                res.writeHead(404);
-                res.end(JSON.stringify({ message: 'Not Found' }));
-            }
-            break;
+            return sendResponse(res, 404, { message: 'Not Found' });
 
         case "POST":
-            
             if (req.url === '/users') {
                 let body = "";
-                req.on('data', (chunck) => {
-                    body += chunck.toString();
-
-                })
+                req.on('data', chunk => {
+                    body += chunk.toString();
+                });
                 req.on('end', async () => {
-
                     const newUser = {};
                     const params = new URLSearchParams(body);
                     for (const [key, value] of params) {
                         newUser[key] = value;
                     }
-                    const users = await readUsers();
-                    newUser.id = users.length + 1;
                     users.push(newUser);
                     await writeUsers(users);
-                    res.writeHead(201);
-                    res.end(JSON.stringify(newUser));
-                })
-            }
-            else {
-                res.writeHead(404);
-                res.end(JSON.stringify({ message: 'Not Found' }));
+                    return sendResponse(res, 201, newUser);
+                });
+            } else {
+                return sendResponse(res, 404, { message: 'Not Found' });
             }
             break;
-            case 'PUT':
-                const urlParts1 = req.url.split('/');
-            const id1= Number(urlParts1[2]);
-                if(req.url === `/users/${id1}`){
-                    let body ="";
-                    req.on('data', (chunks)=>{
-                        body += chunks.toString();
-                    })
-                    req.on('end', async () => {
-                        const params = new URLSearchParams(body);
-                        const urlParts = req.url.split('/');
-                        const id = Number(urlParts[2]);
-                        const updatedUser = {};
-                        for (const [key, value] of params){
-                            updatedUser[key] = value;
-                        }
-                        const users = await readUsers();
-                        const userIndex = users.findIndex(user => user.id ===id1)
-                        if(userIndex!== -1){
-                            const currentUser = users[userIndex];
-                            for (const key in updatedUser){
-                                currentUser[key] = updatedUser[key];
-                            }
-                            users[userIndex] = currentUser;
-                            await writeUsers(users);
-                            res.writeHead(200);
-                            res.end(JSON.stringify(users[userIndex]));
-                        }
-                        else{
-                            res.writeHead(404);
-                            res.end(JSON.stringify({message: 'User not found'}));
-                        }
 
-                    })
-               
-                }
-                else{
-                    res.writeHead(404);
-                    res.end(JSON.stringify({message: 'Not Found'}));
-                }
-                break;
-                case 'DELETE':
-                    const urlParts2 = req.url.split('/');
-                    const id2 = Number(urlParts2[2]);
-                    if(req.url === `/users/${id2}`){
-                        const users = await readUsers();
-                        const userIndex = users.findIndex(user => user.id === id2);
-                        if(userIndex!== -1){
-                            users.splice(userIndex, 1);
-                            await writeUsers(users);
-                            res.writeHead(204);
-                            res.end();
-                        }
-                        else{
-                            res.writeHead(404);
-                            res.end(JSON.stringify({message: 'User not found'}));
-                        }
+        case 'PUT':
+            if (urlParts[1] === 'users' && id ) {
+                let body = "";
+                req.on('data', chunk => {
+                    body += chunk.toString();
+                });
+                req.on('end', async () => {
+                    const updatedUser = Object.fromEntries(new URLSearchParams(body));
+                    const userIndex = users.findIndex(user => user.id === id);
+                    if (userIndex !== -1) {
+                        users[userIndex] = { ...users[userIndex], ...updatedUser };
+                        await writeUsers(users);
+                        return sendResponse(res, 200, users[userIndex]);
                     }
-                    else{
-                        res.writeHead(404);
-                        res.end(JSON.stringify({message: 'Not Found'}));
-                    }
-                    break;
-        default: 
+                    return sendResponse(res, 404, { message: 'User not found' });
+                });
+            } else {
+                return sendResponse(res, 404, { message: 'Not Found' });
+            }
+            break;
 
-
-
-
-
+        
+        default:
+            return sendResponse(res, 405, { message: 'Method Not Allowed' });
     }
-
-})
+});
 
 server.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);  // console.log('Server is running on port 3000');  // console.log(`Server is running on http://localhost:${PORT}`);  // console.log(`Server is running on http://localhost:${PORT}`);  // console.log(`Server is running on http://localhost:${PORT}`);  // console.log(`Server is running on http://localhost:${PORT}`);  // console.log(`Server is running on http://localhost:${PORT}`);  // console.log(`Server is running on http://localhost:${PORT}`);  // console.log(`Server is running on http://localhost:${PORT}`);  // console.log(`Server is running on http://localhost:${PORT}`);  // console.log(`Server is running on http://localhost:${PORT}`);  // console.log(`Server is running on http://localhost:${PORT}`);  // console.log(`Server is running
-}
-)
+    console.log(`Server is running on http://localhost:${PORT}`);
+});
