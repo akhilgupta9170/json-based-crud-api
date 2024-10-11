@@ -86,6 +86,21 @@ const server = http.createServer(async (req, res) => {
             }
             break;
 
+            case 'DELETE':
+            if (urlParts[1] === 'users' && id) {
+                const userIndex = users.findIndex(user => user.id === id);
+                if (userIndex !== -1) {
+                    users.splice(userIndex, 1);
+                    await writeUsers(users);
+                    return sendResponse(res, 204);
+                }
+                return sendResponse(res, 404, { message: 'User not found' });
+            } else {
+                return sendResponse(res, 404, { message: 'Not Found' });
+            }
+            break;
+
+
         
         default:
             return sendResponse(res, 405, { message: 'Method Not Allowed' });
