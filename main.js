@@ -18,7 +18,7 @@ const sendResponse = (res, statusCode, data) => {
     res.end(JSON.stringify(data));
 };
 
-const findIndexOfUser = (users,id) => {
+const findIndexOfUser = (users, id) => {
     return users.findIndex(user => user.id === id);
 };
 
@@ -37,16 +37,29 @@ const server = http.createServer(async (req, res) => {
 
     switch (req.method) {
         case "GET":
-            if (req.url === '/users') {
+            const getUsers = (res) => {
                 return sendResponse(res, 200, users);
-            } else if (urlParts[1] === 'users' && id) {
-                const user = users.find(user => user.id === id);
-                if (user) {
-                    return sendResponse(res, 200, user);
+            }
+            const getUserById = (res, id) => {
+                const userIndex = findIndexOfUser(users, id);
+                if (userIndex > -1) {
+                    return sendResponse(res, 200, users[userIndex]);
                 }
                 return sendResponse(res, 404, { message: 'User not found' });
             }
-            return sendResponse(res, 404, { message: 'Not Found' });
+
+            const handleRequest = (req, res, urlParts, id) => {
+                if (req.url==='/users') {
+                    return getUsers(res);
+                }
+                else if (urlParts[1] === 'users' && id) {
+                    return getUserById(res, id);
+                }
+            }
+            handleRequest(req, res, urlParts, id);
+
+            break;
+
 
         case "POST":
             if (req.url === '/users') {
@@ -92,25 +105,25 @@ const server = http.createServer(async (req, res) => {
             break;
 
         case 'DELETE':
-            const deleteUser = async() =>{
+            const deleteUser = async () => {
                 if (urlParts[1] === 'users' && id) {
                     searchUser(id);
                 } else {
                     return sendResponse(res, 404, { message: 'Not Found' });
                 }
             }
-            const searchUser = async(id) => {
-                const userIndex =  findIndexOfUser(users, id);
-                    if (userIndex !== -1) {
-                        users.splice(userIndex, 1);
-                        await writeUsers(users);
-                        return sendResponse(res, 204);
-                    }
-                    return sendResponse(res, 404, { message: 'User not found' });
+            const searchUser = async (id) => {
+                const userIndex = findIndexOfUser(users, id);
+                if (userIndex !== -1) {
+                    users.splice(userIndex, 1);
+                    await writeUsers(users);
+                    return sendResponse(res, 204);
+                }
+                return sendResponse(res, 404, { message: 'User not found' });
 
             }
             deleteUser();
-            
+
             break;
 
 
